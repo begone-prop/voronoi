@@ -11,7 +11,23 @@
 #include <string.h>
 #include <errno.h>
 #include <sys/mman.h>
+
 #include <png.h>
+#include <wand/MagickWand.h>
+
+#define ThrowWandException(wand) \
+{ \
+  char \
+    *description; \
+ \
+  ExceptionType \
+    severity; \
+ \
+  description=MagickGetException(wand,&severity); \
+  (void) fprintf(stderr,"%s %s %lu %s\n",GetMagickModule(),description); \
+  description=(char *) MagickRelinquishMemory(description); \
+  exit(-1); \
+}
 
 typedef struct point {
     long x;
@@ -42,8 +58,9 @@ point randomPoint(point);
 color randomColor(void);
 color determinePixelColor(const anchor *, size_t, point);
 void *calculateChunk(void *);
-int writePNG(const char *, const color *, point);
 int generateVoronoi(color *, point, const anchor *, size_t);
+int generatePNG(const char *, const color *, point);
+int generateGIF(const char *, anchor *, size_t, color *, point, size_t);
 
 point randomPoint(point range) {
     return (point){
@@ -111,7 +128,7 @@ void *calculateChunk(void *arg) {
     return (void*)(int)1;
 }
 
-int writePNG(const char *filename, const color *color_map, point size) {
+int generatePNG(const char *filename, const color *color_map, point size) {
     FILE *fp;
     png_structp pngp = NULL;
     png_infop infop = NULL;
@@ -227,6 +244,44 @@ int generateVoronoi(color *buffer, point size, const anchor *anchors, size_t num
     return 1;
 }
 
+int generateGIF(const char *filename, anchor *anchors, size_t anchors_size, color *color_map, point size, size_t frames) {
+    MagickWandGenesis();
+    MagickWand *wand = NewMagickWand();
+    MagickBooleanType status;
+
+    static char filepath[PATH_MAX];
+    for(size_t frame = 1; frame <= frames; frame++) {
+        sprintf(filepath, "frame_%02zu.png", frame);
+        /*fprintf(stderr, "%s\n", filepath);*/
+
+        for(size_t idx = 0; idx < anchors_size; idx++) {
+            point sign = {
+                .x = random() % 2 ? -1 : 1,
+                .y = random() % 2 ? -1 : 1,
+            };
+
+            point offset = randomPoint((point){3, 3});
+            anchors[idx].pos.x += offset.x * sign.x;
+            anchors[idx].pos.y += offset.y * sign.y;
+        }
+
+        generateVoronoi(color_map, size, anchors, anchors_size);
+        generatePNG(filepath, color_map, size);
+        MagickReadImage(wand, filepath);
+    }
+
+
+    status = MagickWriteImages(wand, filename, MagickTrue);
+
+    if(status == MagickFalse) {
+        ThrowWandException(wand);
+    }
+
+    wand = DestroyMagickWand(wand);
+    MagickWandTerminus();
+    return 0;
+}
+
 int main(int argc, char **argv) {
     void* addr = malloc(0);
     srandom((unsigned)*(unsigned*)&addr);
@@ -251,8 +306,10 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    generateVoronoi(color_map, size, anchors, anchors_size);
-    writePNG(filename, color_map, size);
+    /*generateVoronoi(color_map, size, anchors, anchors_size);*/
+    /*writePNG(filename, color_map, size);*/
+
+    generateGIF("final.gif", anchors, anchors_size, color_map, size, 60);
 
     munmap(color_map, area);
     return 0;
