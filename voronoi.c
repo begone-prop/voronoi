@@ -300,7 +300,7 @@ int main(int argc, char **argv) {
     long area = size.x * size.y;
 
     const size_t anchors_size = 15;
-    const size_t frames = 120;
+    const size_t frames = 60;
     anchor anchors[anchors_size];
 
     for(size_t idx = 0; idx < anchors_size; idx++) {
