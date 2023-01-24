@@ -46,7 +46,7 @@ color determinePixelColor(const anchor *, size_t, point);
 void *calculateChunk(void *);
 int generateVoronoi(color *, point, const anchor *, size_t);
 int generatePNG(const char *, const color *, point);
-int generateGIF(const char *, anchor *, size_t, color *, point, size_t);
+int generateGIF(const char *, anchor *, size_t, color *, point, size_t, int);
 
 point randomPoint(point range) {
     return (point){
@@ -230,12 +230,11 @@ int generatePNG(const char *filename, const color *color_map, point size) {
     return 1;
 }
 
-int generateGIF(const char *filename, anchor *anchors, size_t anchors_size, color *color_map, point size, size_t frames) {
+int generateGIF(const char *filename, anchor *anchors, size_t anchors_size, color *color_map, point size, size_t frames, int velocity) {
     MagickWandGenesis();
     MagickWand *wand = NewMagickWand();
     MagickBooleanType status;
-
-    int velocity = 3;
+    /*MagickSetCompression(wand, BZipCompression);*/
 
     point direction[] = {
         {-1, 0}, {-1, 1}, {0, 1}, {1, 1},
@@ -280,17 +279,38 @@ int generateGIF(const char *filename, anchor *anchors, size_t anchors_size, colo
     return 0;
 }
 
+/*
+    TODO:
+    + output file argument -o, --output, <PATH>
+    + image/gif size argument -s, --size, x | x,y
+    + anchors argument -a, --anchors c | x,y;x,y;...
+    + anchors file argument -A, --anchors_from <PATH>
+    + pallete argument -p, --pallete c | r,g,b;r,g,b;...
+    + pallete file argument -P, --pallete_from <PATH>
+    + frames argument -f, --frames c
+    + keep intermediate files argument  -k, --keep
+    + seed -x --seed c
+    + verbose argument -v, --versbose
+    + help message
+    + better error messages
+    + create threads only once instead of per frame
+*/
+
 int main(int argc, char **argv) {
     void* addr = malloc(0);
-    srandom((unsigned)*(unsigned*)&addr);
+    long seed = (long)*(long*)&addr;
     free(addr);
 
+    srandom(seed);
+
     const char *filename = "./voronoi.png";
-    point size = {1000, 1000};
+    point size = {500, 500};
     long area = size.x * size.y;
 
-    const size_t anchors_size = 15;
+    const size_t anchors_size = 50;
     const size_t frames = 60;
+    const int jitter = 5;
+
     anchor anchors[anchors_size];
 
     for(size_t idx = 0; idx < anchors_size; idx++) {
@@ -306,9 +326,9 @@ int main(int argc, char **argv) {
     }
 
     /*generateVoronoi(color_map, size, anchors, anchors_size);*/
-    /*writePNG(filename, color_map, size);*/
+    /*generatePNG(filename, color_map, size);*/
 
-    generateGIF("final.gif", anchors, anchors_size, color_map, size, frames);
+    generateGIF("final.gif", anchors, anchors_size, color_map, size, frames, jitter);
     munmap(color_map, area);
     return 0;
 }
