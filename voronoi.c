@@ -13,8 +13,6 @@
 #include <sys/mman.h>
 #include <png.h>
 
-#define RANGE 5000
-
 typedef struct point {
     long x;
     long y;
@@ -28,23 +26,24 @@ typedef struct color {
 
 typedef struct task_arg {
     long start;
-    long size;
-    long range;
+    long run;
+    point size;
     const point *anchors;
     size_t anchors_size;
     size_t *map;
 } task_arg;
 
-point randomPoint(long);
+point randomPoint(point);
 color randomColor(void);
 size_t findNearestPointIdx(const point *, size_t, point);
 void *calculateChunk(void *);
-int writePNG(const char *, const size_t *, const color *, long);
+int writePNG(const char *, const size_t *, const color *, point);
+int generateVoronoi(size_t *buffer, point size, size_t num_anchors);
 
-point randomPoint(long range) {
+point randomPoint(point range) {
     return (point){
-        random() % range,
-        random() % range
+        random() % range.x,
+        random() % range.y
     };
 }
 
@@ -81,33 +80,33 @@ void *calculateChunk(void *arg) {
     task_arg *targ = (task_arg*) arg;
 
     point a = {
-        .x = targ->start % targ->range,
-        .y = targ->start / targ->range
+        .x = targ->start % targ->size.x,
+        .y = targ->start / targ->size.x
     };
 
     point b = {
-        .x = (targ->start + targ->size) % targ->range,
-        .y = (targ->start + targ->size) / targ->range
+        .x = (targ->start + targ->run) % targ->size.x,
+        .y = (targ->start + targ->run) / targ->size.x
     };
 
-    for(long x = a.x; x < targ->range; x++) {
-        targ->map[x + a.y * targ->range] = findNearestPointIdx(targ->anchors, targ->anchors_size, (point){x, a.y});
+    for(long x = a.x; x < targ->size.x; x++) {
+        targ->map[x + a.y * targ->size.x] = findNearestPointIdx(targ->anchors, targ->anchors_size, (point){x, a.y});
     }
 
     for(long y = a.y + 1; y < b.y; y++) {
-        for(long x = 0; x < targ->range; x++) {
-            targ->map[x + y * targ->range] = findNearestPointIdx(targ->anchors, targ->anchors_size, (point){x, y});
+        for(long x = 0; x < targ->size.x; x++) {
+            targ->map[x + y * targ->size.x] = findNearestPointIdx(targ->anchors, targ->anchors_size, (point){x, y});
         }
     }
 
     for(long x = 0; x < b.x; x++) {
-        targ->map[x + b.y * targ->range] = findNearestPointIdx(targ->anchors, targ->anchors_size, (point){x, b.y});
+        targ->map[x + b.y * targ->size.x] = findNearestPointIdx(targ->anchors, targ->anchors_size, (point){x, b.y});
     }
 
     return (void*)(int)1;
 }
 
-int writePNG(const char *filename, const size_t *dmap, const color *colors, long range) {
+int writePNG(const char *filename, const size_t *dmap, const color *colors, point size) {
     FILE *fp;
     png_structp pngp = NULL;
     png_infop infop = NULL;
@@ -134,17 +133,17 @@ int writePNG(const char *filename, const size_t *dmap, const color *colors, long
         return 0;
     }
 
-    png_set_IHDR(pngp, infop, range, range, depth,
+    png_set_IHDR(pngp, infop, size.x, size.y, depth,
             PNG_COLOR_TYPE_RGB, PNG_INTERLACE_NONE,
             PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT
             );
 
-    rows = png_malloc(pngp, range * sizeof(png_byte *));
-    for(long r = 0; r < range; r++) {
-        png_byte *row = png_malloc(pngp, range * pixel_size);
+    rows = png_malloc(pngp, size.y * sizeof(png_byte *));
+    for(long r = 0; r < size.y; r++) {
+        png_byte *row = png_malloc(pngp, size.x * pixel_size);
         rows[r] = row;
-        for(long c = 0; c < range; c++) {
-            size_t idx = dmap[c + r * range];
+        for(long c = 0; c < size.x; c++) {
+            size_t idx = dmap[c + r * size.x];
             color c = colors[idx];
 
             *row++ = c.red;
@@ -157,7 +156,7 @@ int writePNG(const char *filename, const size_t *dmap, const color *colors, long
     png_set_rows(pngp, infop, rows);
     png_write_png(pngp, infop, PNG_TRANSFORM_IDENTITY, NULL);
 
-    for(long r = 0; r < range; r++) {
+    for(long r = 0; r < size.y; r++) {
         png_free(pngp, rows[r]);
     }
 
@@ -167,42 +166,23 @@ int writePNG(const char *filename, const size_t *dmap, const color *colors, long
     return 1;
 }
 
-int main(int argc, char **argv) {
-    void* addr = malloc(0);
-    srandom((unsigned)*(unsigned*)&addr);
-    free(addr);
+int generateVoronoi(size_t *buffer, point size, size_t num_anchors) {
+    point *anchors = calloc(num_anchors, sizeof(point));
 
-    long range = argc > 1 ? strtol(argv[1], NULL, 10) : RANGE;
-    long resolution = range * range;
-
-    const size_t anchors_size = 50;
-    point anchors[anchors_size];
-    color anchor_colors[anchors_size];
-
-    for(size_t idx = 0; idx < anchors_size; idx++) {
-        anchors[idx] = randomPoint(range);
-        anchor_colors[idx] = randomColor();
+    for(size_t idx = 0; idx < num_anchors; idx++) {
+        anchors[idx] = randomPoint(size);
     }
 
-    /*size_t *distance_map = calloc(resolution, sizeof(size_t));*/
-    size_t *distance_map = mmap(NULL, resolution * sizeof(size_t), PROT_WRITE | PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-
-    if(distance_map == MAP_FAILED) {
-        fprintf(stderr, "Failed to allocate memory mmap(): %s\n", strerror(errno));
-        return 1;
-    }
-
+    long area = size.x * size.y;
     long threads = sysconf(_SC_NPROCESSORS_CONF);
-    /*long threads = 1;*/
-    long chunk = resolution / threads;
-    long rem = resolution - threads * chunk;
+    long chunk = area / threads;
+    long rem = area - threads * chunk;
 
     if(threads == 1) {
-        printf("here\n");
-        for(int y = 0; y < range; y++) {
-            for(int x = 0; x < range; x++) {
-                size_t nearest_idx = findNearestPointIdx(anchors, anchors_size, (point){x, y});
-                distance_map[x + y * range] = nearest_idx;
+        for(int y = 0; y < size.y; y++) {
+            for(int x = 0; x < size.x; x++) {
+                size_t nearest_idx = findNearestPointIdx(anchors, num_anchors, (point){x, y});
+                buffer[x + y * size.x] = nearest_idx;
             }
         }
     } else {
@@ -214,29 +194,28 @@ int main(int argc, char **argv) {
         task_arg *args[threads];
 
         while(partition) {
-            long size;
+            long run;
 
-            if(thread_count + 1 == threads || total + chunk + rem >= resolution) {
-                size = chunk + rem;
+            if(thread_count + 1 == threads || total + chunk + rem >= area) {
+                run = chunk + rem;
                 partition = false;
-            } else size = chunk;
+            } else run = chunk;
 
             args[thread_count] = malloc(sizeof(task_arg));
-            /*fprintf(stderr, "[%li] start offset: %li, size: %li\n", thread_count, total, size);*/
 
             args[thread_count]->start = total;
             args[thread_count]->size = size;
-            args[thread_count]->range = range;
+            args[thread_count]->run = run;
             args[thread_count]->anchors = anchors;
-            args[thread_count]->anchors_size = anchors_size;
-            args[thread_count]->map = distance_map;
+            args[thread_count]->anchors_size = num_anchors;
+            args[thread_count]->map = buffer;
 
             if(pthread_create(&th[thread_count], NULL, calculateChunk, args[thread_count]) != 0) {
                 fprintf(stderr, "Failed to create thread\n");
                 return 1;
             }
 
-            total += size;
+            total += run;
             thread_count++;
         }
 
@@ -249,7 +228,36 @@ int main(int argc, char **argv) {
         }
     }
 
-    /*writePNG("./vornoi.png", distance_map, anchor_colors, range);*/
-    munmap(distance_map, resolution);
+    free(anchors);
+    return 1;
+}
+
+int main(int argc, char **argv) {
+    void* addr = malloc(0);
+    srandom((unsigned)*(unsigned*)&addr);
+    free(addr);
+
+    const char *filename = "./voronoi.png";
+    point size = {8000, 6000};
+    long area = size.x * size.y;
+
+    const size_t anchors_size = 3;
+    color anchor_colors[anchors_size];
+
+    for(size_t idx = 0; idx < anchors_size; idx++) {
+        anchor_colors[idx] = randomColor();
+    }
+
+    size_t *distance_map = mmap(NULL, area * sizeof(size_t), PROT_WRITE | PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+    if(distance_map == MAP_FAILED) {
+        fprintf(stderr, "Failed to allocate memory mmap(): %s\n", strerror(errno));
+        return 1;
+    }
+
+    generateVoronoi(distance_map, size, anchors_size);
+    writePNG(filename, distance_map, anchor_colors, size);
+
+    munmap(distance_map, area);
     return 0;
 }
