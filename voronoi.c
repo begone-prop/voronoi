@@ -249,20 +249,24 @@ int generateGIF(const char *filename, anchor *anchors, size_t anchors_size, colo
     MagickWand *wand = NewMagickWand();
     MagickBooleanType status;
 
+    int velocity = 3;
+
+    point direction[] = {
+        {-1, 0}, {-1, 1}, {0, 1}, {1, 1},
+        {1, 0}, {1, -1}, {0, -1}, {-1, -1}
+    };
+
+    static const size_t direction_size = sizeof(direction) / sizeof(direction[0]);
+
     static char filepath[PATH_MAX];
     for(size_t frame = 1; frame <= frames; frame++) {
-        sprintf(filepath, "frame_%02zu.png", frame);
-        /*fprintf(stderr, "%s\n", filepath);*/
+        sprintf(filepath, "frame_%zu.png", frame);
 
         for(size_t idx = 0; idx < anchors_size; idx++) {
-            point sign = {
-                .x = random() % 2 ? -1 : 1,
-                .y = random() % 2 ? -1 : 1,
-            };
-
-            point offset = randomPoint((point){3, 3});
-            anchors[idx].pos.x += offset.x * sign.x;
-            anchors[idx].pos.y += offset.y * sign.y;
+            size_t dir = random() % direction_size;
+            point step = direction[dir];
+            anchors[idx].pos.x += step.x * velocity;
+            anchors[idx].pos.y += step.y * velocity;
         }
 
         generateVoronoi(color_map, size, anchors, anchors_size);
@@ -270,11 +274,15 @@ int generateGIF(const char *filename, anchor *anchors, size_t anchors_size, colo
         MagickReadImage(wand, filepath);
     }
 
-
     status = MagickWriteImages(wand, filename, MagickTrue);
 
     if(status == MagickFalse) {
         ThrowWandException(wand);
+    }
+
+    for(size_t frame = 1; frame <= frames; frame++) {
+        sprintf(filepath, "frame_%zu.png", frame);
+        remove(filepath);
     }
 
     wand = DestroyMagickWand(wand);
@@ -291,7 +299,8 @@ int main(int argc, char **argv) {
     point size = {1000, 1000};
     long area = size.x * size.y;
 
-    const size_t anchors_size = 10;
+    const size_t anchors_size = 15;
+    const size_t frames = 120;
     anchor anchors[anchors_size];
 
     for(size_t idx = 0; idx < anchors_size; idx++) {
@@ -309,8 +318,7 @@ int main(int argc, char **argv) {
     /*generateVoronoi(color_map, size, anchors, anchors_size);*/
     /*writePNG(filename, color_map, size);*/
 
-    generateGIF("final.gif", anchors, anchors_size, color_map, size, 60);
-
+    generateGIF("final.gif", anchors, anchors_size, color_map, size, frames);
     munmap(color_map, area);
     return 0;
 }
