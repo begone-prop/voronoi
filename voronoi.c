@@ -24,21 +24,26 @@ typedef struct color {
     uint8_t blue;
 } color;
 
+typedef struct anchor {
+    point pos;
+    color col;
+} anchor;
+
 typedef struct task_arg {
     long start;
     long run;
     point size;
-    const point *anchors;
+    const anchor *anchors;
     size_t anchors_size;
-    size_t *map;
+    color *map;
 } task_arg;
 
 point randomPoint(point);
 color randomColor(void);
-size_t findNearestPointIdx(const point *, size_t, point);
+color determinePixelColor(const anchor *, size_t, point);
 void *calculateChunk(void *);
-int writePNG(const char *, const size_t *, const color *, point);
-int generateVoronoi(size_t *buffer, point size, size_t num_anchors);
+int writePNG(const char *, const color *, point);
+int generateVoronoi(color *, point, const anchor *, size_t);
 
 point randomPoint(point range) {
     return (point){
@@ -55,25 +60,25 @@ color randomColor(void) {
     };
 }
 
-size_t findNearestPointIdx(const point *anchors, size_t size, point target) {
+color determinePixelColor(const anchor *anchors, size_t size, point target) {
     long min = LONG_MAX;
-    size_t min_idx;
+    color c;
 
     for(size_t idx = 0; idx < size; idx++) {
         point d = {
-            anchors[idx].x - target.x,
-            anchors[idx].y - target.y,
+            anchors[idx].pos.x - target.x,
+            anchors[idx].pos.y - target.y,
         };
 
         long current = d.x * d.x + d.y * d.y;
 
         if(min > current) {
             min = current;
-            min_idx = idx;
+            c = anchors[idx].col;
         }
     }
 
-    return min_idx;
+    return c;
 }
 
 void *calculateChunk(void *arg) {
@@ -90,23 +95,23 @@ void *calculateChunk(void *arg) {
     };
 
     for(long x = a.x; x < targ->size.x; x++) {
-        targ->map[x + a.y * targ->size.x] = findNearestPointIdx(targ->anchors, targ->anchors_size, (point){x, a.y});
+        targ->map[x + a.y * targ->size.x] = determinePixelColor(targ->anchors, targ->anchors_size, (point){x, a.y});
     }
 
     for(long y = a.y + 1; y < b.y; y++) {
         for(long x = 0; x < targ->size.x; x++) {
-            targ->map[x + y * targ->size.x] = findNearestPointIdx(targ->anchors, targ->anchors_size, (point){x, y});
+            targ->map[x + y * targ->size.x] = determinePixelColor(targ->anchors, targ->anchors_size, (point){x, y});
         }
     }
 
     for(long x = 0; x < b.x; x++) {
-        targ->map[x + b.y * targ->size.x] = findNearestPointIdx(targ->anchors, targ->anchors_size, (point){x, b.y});
+        targ->map[x + b.y * targ->size.x] = determinePixelColor(targ->anchors, targ->anchors_size, (point){x, b.y});
     }
 
     return (void*)(int)1;
 }
 
-int writePNG(const char *filename, const size_t *dmap, const color *colors, point size) {
+int writePNG(const char *filename, const color *color_map, point size) {
     FILE *fp;
     png_structp pngp = NULL;
     png_infop infop = NULL;
@@ -143,12 +148,10 @@ int writePNG(const char *filename, const size_t *dmap, const color *colors, poin
         png_byte *row = png_malloc(pngp, size.x * pixel_size);
         rows[r] = row;
         for(long c = 0; c < size.x; c++) {
-            size_t idx = dmap[c + r * size.x];
-            color c = colors[idx];
-
-            *row++ = c.red;
-            *row++ = c.green;
-            *row++ = c.blue;
+            color col = color_map[c + r * size.x];
+            *row++ = col.red;
+            *row++ = col.green;
+            *row++ = col.blue;
         }
     }
 
@@ -166,13 +169,7 @@ int writePNG(const char *filename, const size_t *dmap, const color *colors, poin
     return 1;
 }
 
-int generateVoronoi(size_t *buffer, point size, size_t num_anchors) {
-    point *anchors = calloc(num_anchors, sizeof(point));
-
-    for(size_t idx = 0; idx < num_anchors; idx++) {
-        anchors[idx] = randomPoint(size);
-    }
-
+int generateVoronoi(color *buffer, point size, const anchor *anchors, size_t num_anchors) {
     long area = size.x * size.y;
     long threads = sysconf(_SC_NPROCESSORS_CONF);
     long chunk = area / threads;
@@ -181,8 +178,7 @@ int generateVoronoi(size_t *buffer, point size, size_t num_anchors) {
     if(threads == 1) {
         for(int y = 0; y < size.y; y++) {
             for(int x = 0; x < size.x; x++) {
-                size_t nearest_idx = findNearestPointIdx(anchors, num_anchors, (point){x, y});
-                buffer[x + y * size.x] = nearest_idx;
+            buffer[x + y * size.x] = determinePixelColor(anchors, num_anchors, (point){x, y});
             }
         }
     } else {
@@ -228,7 +224,6 @@ int generateVoronoi(size_t *buffer, point size, size_t num_anchors) {
         }
     }
 
-    free(anchors);
     return 1;
 }
 
@@ -238,26 +233,27 @@ int main(int argc, char **argv) {
     free(addr);
 
     const char *filename = "./voronoi.png";
-    point size = {8000, 6000};
+    point size = {1000, 1000};
     long area = size.x * size.y;
 
-    const size_t anchors_size = 3;
-    color anchor_colors[anchors_size];
+    const size_t anchors_size = 10;
+    anchor anchors[anchors_size];
 
     for(size_t idx = 0; idx < anchors_size; idx++) {
-        anchor_colors[idx] = randomColor();
+        anchors[idx].pos = randomPoint(size);
+        anchors[idx].col = randomColor();
     }
 
-    size_t *distance_map = mmap(NULL, area * sizeof(size_t), PROT_WRITE | PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    color *color_map = mmap(NULL, area * sizeof(color), PROT_WRITE | PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
-    if(distance_map == MAP_FAILED) {
+    if(color_map == MAP_FAILED) {
         fprintf(stderr, "Failed to allocate memory mmap(): %s\n", strerror(errno));
         return 1;
     }
 
-    generateVoronoi(distance_map, size, anchors_size);
-    writePNG(filename, distance_map, anchor_colors, size);
+    generateVoronoi(color_map, size, anchors, anchors_size);
+    writePNG(filename, color_map, size);
 
-    munmap(distance_map, area);
+    munmap(color_map, area);
     return 0;
 }
