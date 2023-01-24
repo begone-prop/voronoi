@@ -15,20 +15,6 @@
 #include <png.h>
 #include <wand/MagickWand.h>
 
-#define ThrowWandException(wand) \
-{ \
-  char \
-    *description; \
- \
-  ExceptionType \
-    severity; \
- \
-  description=MagickGetException(wand,&severity); \
-  (void) fprintf(stderr,"%s %s %lu %s\n",GetMagickModule(),description); \
-  description=(char *) MagickRelinquishMemory(description); \
-  exit(-1); \
-}
-
 typedef struct point {
     long x;
     long y;
@@ -128,64 +114,6 @@ void *calculateChunk(void *arg) {
     return (void*)(int)1;
 }
 
-int generatePNG(const char *filename, const color *color_map, point size) {
-    FILE *fp;
-    png_structp pngp = NULL;
-    png_infop infop = NULL;
-    png_byte **rows = NULL;
-    int pixel_size =3;
-    int depth = 8;
-
-    fp = fopen(filename, "wb+");
-    if(!fp) {
-        fprintf(stderr, "Failed to open %s: %s\n", filename, strerror(errno));
-        return 0;
-    }
-
-    pngp = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-    if(pngp == NULL) {
-        fprintf(stderr, "Failed call to png_create_write_struct()\n");
-        return 0;
-    }
-
-    infop = png_create_info_struct(pngp);
-
-    if(infop == NULL) {
-        fprintf(stderr, "Failed call to png_create_info_struct()\n");
-        return 0;
-    }
-
-    png_set_IHDR(pngp, infop, size.x, size.y, depth,
-            PNG_COLOR_TYPE_RGB, PNG_INTERLACE_NONE,
-            PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT
-            );
-
-    rows = png_malloc(pngp, size.y * sizeof(png_byte *));
-    for(long r = 0; r < size.y; r++) {
-        png_byte *row = png_malloc(pngp, size.x * pixel_size);
-        rows[r] = row;
-        for(long c = 0; c < size.x; c++) {
-            color col = color_map[c + r * size.x];
-            *row++ = col.red;
-            *row++ = col.green;
-            *row++ = col.blue;
-        }
-    }
-
-    png_init_io(pngp, fp);
-    png_set_rows(pngp, infop, rows);
-    png_write_png(pngp, infop, PNG_TRANSFORM_IDENTITY, NULL);
-
-    for(long r = 0; r < size.y; r++) {
-        png_free(pngp, rows[r]);
-    }
-
-    png_free(pngp, rows);
-    png_destroy_write_struct(&pngp, &infop);
-    fclose(fp);
-    return 1;
-}
-
 int generateVoronoi(color *buffer, point size, const anchor *anchors, size_t num_anchors) {
     long area = size.x * size.y;
     long threads = sysconf(_SC_NPROCESSORS_CONF);
@@ -244,6 +172,64 @@ int generateVoronoi(color *buffer, point size, const anchor *anchors, size_t num
     return 1;
 }
 
+int generatePNG(const char *filename, const color *color_map, point size) {
+    FILE *fp;
+    png_structp pngp = NULL;
+    png_infop infop = NULL;
+    png_byte **rows = NULL;
+    int pixel_size =3;
+    int depth = 8;
+
+    fp = fopen(filename, "wb+");
+    if(!fp) {
+        fprintf(stderr, "Failed to open %s: %s\n", filename, strerror(errno));
+        return 0;
+    }
+
+    pngp = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+    if(pngp == NULL) {
+        fprintf(stderr, "Failed call to png_create_write_struct()\n");
+        return 0;
+    }
+
+    infop = png_create_info_struct(pngp);
+
+    if(infop == NULL) {
+        fprintf(stderr, "Failed call to png_create_info_struct()\n");
+        return 0;
+    }
+
+    png_set_IHDR(pngp, infop, size.x, size.y, depth,
+            PNG_COLOR_TYPE_RGB, PNG_INTERLACE_NONE,
+            PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT
+            );
+
+    rows = png_malloc(pngp, size.y * sizeof(png_byte *));
+    for(long r = 0; r < size.y; r++) {
+        png_byte *row = png_malloc(pngp, size.x * pixel_size);
+        rows[r] = row;
+        for(long c = 0; c < size.x; c++) {
+            color col = color_map[c + r * size.x];
+            *row++ = col.red;
+            *row++ = col.green;
+            *row++ = col.blue;
+        }
+    }
+
+    png_init_io(pngp, fp);
+    png_set_rows(pngp, infop, rows);
+    png_write_png(pngp, infop, PNG_TRANSFORM_IDENTITY, NULL);
+
+    for(long r = 0; r < size.y; r++) {
+        png_free(pngp, rows[r]);
+    }
+
+    png_free(pngp, rows);
+    png_destroy_write_struct(&pngp, &infop);
+    fclose(fp);
+    return 1;
+}
+
 int generateGIF(const char *filename, anchor *anchors, size_t anchors_size, color *color_map, point size, size_t frames) {
     MagickWandGenesis();
     MagickWand *wand = NewMagickWand();
@@ -277,7 +263,11 @@ int generateGIF(const char *filename, anchor *anchors, size_t anchors_size, colo
     status = MagickWriteImages(wand, filename, MagickTrue);
 
     if(status == MagickFalse) {
-        ThrowWandException(wand);
+        ExceptionType severity;
+        char *description = MagickGetException(wand,&severity);
+        (void) fprintf(stderr,"%s %s %lu %s\n",GetMagickModule(),description);
+        description= (char *) MagickRelinquishMemory(description);
+        exit(-1);
     }
 
     for(size_t frame = 1; frame <= frames; frame++) {
