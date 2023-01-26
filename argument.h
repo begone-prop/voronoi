@@ -31,20 +31,6 @@ typedef struct Params {
     .seed = 0 \
 }
 
-static const struct option long_options[] = {
-    {"output_file", required_argument, NULL, 'o'},
-    {"size", required_argument, NULL, 's'},
-    {"anchors", required_argument, NULL, 'a'},
-    {"anchors_from", required_argument, NULL, 'A'},
-    {"pallete", required_argument, NULL, 'p'},
-    {"pallete_from", required_argument, NULL, 'P'},
-    {"frames", required_argument, NULL, 'f'},
-    {"keep", no_argument, NULL, 'k'},
-    {"seed", required_argument, NULL, 'x'},
-    {"verbose", optional_argument, NULL, 'v'},
-    {"help", optional_argument, NULL, 'h'},
-};
-
 Params parseArguments(int, char **);
 
 #endif

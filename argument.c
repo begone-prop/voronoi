@@ -21,8 +21,25 @@ typedef enum Token {
 
 static const char *token_name[] = { "BAD", "END", "ENTRY", "DELIM", "NUMBER" };
 
+static const struct option long_options[] = {
+    {"output_file", required_argument, NULL, 'o'},
+    {"size", required_argument, NULL, 's'},
+    {"colors", required_argument, NULL, 'c'},
+    {"colors_from", required_argument, NULL, 'C'},
+    {"pallete", required_argument, NULL, 'p'},
+    {"pallete_from", required_argument, NULL, 'P'},
+    {"frames", required_argument, NULL, 'f'},
+    {"keep", no_argument, NULL, 'k'},
+    {"seed", required_argument, NULL, 'x'},
+    {"verbose", optional_argument, NULL, 'v'},
+    {"help", optional_argument, NULL, 'h'},
+};
+
 static Token parseToken(const char *, const char **, long *);
 static long *parseEntries(const char *, size_t, size_t *);
+static char *mmapFile(const char *, size_t *);
+static long getNumber(const char *);
+static point parseSize(const char *);
 
 Token parseToken(const char *fmt, const char **next, long *number) {
     char c = 0;
@@ -167,8 +184,6 @@ long *parseEntries(const char *fmt, size_t members_count, size_t *written) {
     return entries;
 }
 
-static point parseSize(const char *);
-
 static point parseSize(const char *fmt) {
     point ret = {0, 0};
 
@@ -261,6 +276,7 @@ static char *mmapFile(const char *filename, size_t *size) {
     return addr;
 }
 
+
 static long getNumber(const char *fmt) {
     char *c;
     long num = strtol(fmt, &c, 10);
@@ -276,7 +292,7 @@ Params parseArguments(int argc, char **argv) {
     bool got_anchors = false;
     bool got_colors = false;
 
-    while((opt = getopt_long(argc, argv, "o:s:a:A:p:P:f:kx:v::h", long_options, NULL)) != -1) {
+    while((opt = getopt_long(argc, argv, "o:s:a:A:c:C:f:kx:v::h", long_options, NULL)) != -1) {
         switch(opt) {
             case 'o': {
                 fprintf(stderr, "Got output_file option\n");
@@ -338,7 +354,7 @@ Params parseArguments(int argc, char **argv) {
                 break;
             }
 
-            case 'p': {
+            case 'c': {
                 fprintf(stderr, "Got pallete option\n");
                 color *p = NULL;
                 long p_size = 0;
@@ -355,7 +371,7 @@ Params parseArguments(int argc, char **argv) {
                 break;
             }
 
-            case 'P': {
+            case 'C': {
                 fprintf(stderr, "Got pallete_from option\n");
                 fprintf(stderr, "Got anchors_from option\n");
                 char *colors_file = optarg;
@@ -421,6 +437,8 @@ Params parseArguments(int argc, char **argv) {
 
             default: {
                 fprintf(stderr, "Got %c\n", opt);
+                fprintf(stderr, "Got invaid argument: %c\n", opt);
+                exit(1);
                 break;
             }
         }
