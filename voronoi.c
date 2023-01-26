@@ -1,14 +1,8 @@
 #define _DEFAULT_SOURCE
-#define _GNU_SOURCE
 
 #include <stdio.h>
-#include <stdint.h>
-#include <stdbool.h>
-#include <unistd.h>
-#include <pthread.h>
 #include <stdlib.h>
-#include <string.h>
-#include <errno.h>
+#include <stdbool.h>
 #include <sys/mman.h>
 
 #include "./canvas.h"
@@ -16,15 +10,6 @@
 
 /*
     TODO:
-    + output file argument -o, --output, <PATH>    [X]
-    + image/gif size argument -s, --size, x | x,y  [X]
-    + anchors argument -a, --anchors c | x,y;x,y;...  [X]
-    + anchors file argument -A, --anchors_from <PATH>  [X]
-    + pallete argument -p, --pallete c | #rrggbb;#rrggbb;...  [X]
-    + pallete file argument -P, --pallete_from <PATH>  [X]
-    + frames argument -f, --frames c  [X]
-    + keep intermediate files argument  -k, --keep  [X]
-    + seed -x --seed c  [X]
     + verbose argument -v, --versbose
     + help message
     + better error messages
@@ -43,7 +28,7 @@ int main(int argc, char **argv) {
     color *color_map = mmap(NULL, area * sizeof(color), PROT_WRITE | PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
     if(color_map == MAP_FAILED) {
-        fprintf(stderr, "failed to allocate memory mmap(): %s\n", strerror(errno));
+        fprintf(stderr, "failed to allocate memory mmap()\n");
         return 1;
     }
 
@@ -54,6 +39,8 @@ int main(int argc, char **argv) {
         generateGIF(options.filename, options.anchors, options.anchors_size, color_map, options.size, options.frames, 3, options.keep);
     }
 
+    if(options.anchors) free(options.anchors);
+    if(options.colors) free(options.colors);
     munmap(color_map, area);
     return 0;
 }

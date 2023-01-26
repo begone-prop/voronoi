@@ -1,4 +1,5 @@
 #define _XOPEN_SOURCE 500
+#define _GNU_SOURCE
 
 #include "./argument.h"
 #include "canvas.h"
@@ -10,6 +11,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
+#include <getopt.h>
 
 typedef enum Token {
     BAD = 0,

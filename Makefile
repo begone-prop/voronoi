@@ -2,7 +2,7 @@ BIN = voronoi
 CC = gcc
 
 CFLAGS = -Wall -Wextra -Wno-implicit-fallthrough -Wno-unused-variable -std=c99 -pedantic
-CLIBS = -lpng
+CLIBS = -lpng -lpthread
 IMFLAGS = $(shell pkg-config --cflags --libs MagickWand)
 
 CFILES = argument.c canvas.c voronoi.c
