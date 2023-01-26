@@ -12,6 +12,7 @@
 #include <sys/mman.h>
 
 #include "./canvas.h"
+#include "./argument.h"
 
 /*
     TODO:
@@ -29,6 +30,7 @@
     + better error messages
     + create threads only once instead of per frame
     + RLE on color map to reduce memory
+    + print frame times
 */
 
 int main(int argc, char **argv) {
@@ -46,33 +48,36 @@ int main(int argc, char **argv) {
 
     srandom(seed);
 
-    const char *out_image = "./voronoi.png";
-    /*[>const char *out_gif = "./vor.gif";<]*/
+    Params options = NEW_PARAMS();
+    options = parseArguments(argc, argv);
 
-    long area = size.x * size.y;
+    /*long area = size.x * size.y;*/
 
-    const size_t anchors_size = 50;
-    /*const size_t frames = 60;*/
-    /*const int jitter = 5;*/
+    /*const size_t anchors_size = 50;*/
+    /*[>const size_t frames = 60;<]*/
+    /*[>const int jitter = 5;<]*/
 
-    anchor anchors[anchors_size];
+    /*anchor anchors[anchors_size];*/
 
-    for(size_t idx = 0; idx < anchors_size; idx++) {
-        anchors[idx].pos = randomPoint(size);
-        anchors[idx].col = randomColor();
-    }
+    /*for(size_t idx = 0; idx < anchors_size; idx++) {*/
+        /*anchors[idx].pos = randomPoint(size);*/
+        /*anchors[idx].col = randomColor();*/
+    /*}*/
+
+    long area = options.size.x * options.size.y;
 
     color *color_map = mmap(NULL, area * sizeof(color), PROT_WRITE | PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
-    /*if(color_map == MAP_FAILED) {*/
-        /*fprintf(stderr, "Failed to allocate memory mmap(): %s\n", strerror(errno));*/
-        /*return 1;*/
-    /*}*/
+    if(color_map == MAP_FAILED) {
+        fprintf(stderr, "failed to allocate memory mmap(): %s\n", strerror(errno));
+        return 1;
+    }
 
-    generateVoronoi(color_map, size, anchors, anchors_size);
-    generatePNG(out_image, color_map, size);
+    options.filename = "./voronoi.png";
+    generateVoronoi(color_map, options.size, options.anchors, options.anchors_size);
+    generatePNG(options.filename, color_map, options.size);
 
-    /*generateGIF(out_gif, anchors, anchors_size, color_map, size, frames, jitter);*/
+    /*[>generateGIF(out_gif, anchors, anchors_size, color_map, size, frames, jitter);<]*/
     munmap(color_map, area);
     return 0;
 }

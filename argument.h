@@ -19,6 +19,18 @@ typedef struct Params {
     long seed;
 } Params;
 
+#define NEW_PARAMS() (Params){ \
+    .filename = NULL, \
+    .size = {250, 250}, \
+    .anchors = NULL, \
+    .anchors_size = 5, \
+    .colors = NULL, \
+    .colors_size = 60, \
+    .frames = 0, \
+    .keep = false, \
+    .seed = 0 \
+}
+
 static const struct option long_options[] = {
     {"output_file", required_argument, NULL, 'o'},
     {"size", required_argument, NULL, 's'},

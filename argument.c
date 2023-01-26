@@ -1,5 +1,8 @@
+
 #include "./argument.h"
+#include "canvas.h"
 #include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
 
@@ -159,45 +162,139 @@ long *parseEntries(const char *fmt, size_t members_count, size_t *written) {
     return entries;
 }
 
+static point parseSize(const char *);
+
+static point parseSize(const char *fmt) {
+    point ret = {0, 0};
+
+    size_t memb_size = 0;
+    long *memb = parseEntries(optarg, 2, &memb_size);
+
+    if(!memb || memb_size == 0)
+        return ret;
+
+    if(memb_size == 1) {
+        ret.x = (long) memb;
+        ret.y = ret.x;
+    } else {
+        ret.x = memb[0];
+        ret.y = memb[1];
+        free(memb);
+    }
+
+    return ret;
+}
+
+static anchor *parseAnchors(const char *fmt, long *size) {
+    size_t memb_size = 0;
+    long *memb = parseEntries(fmt, 2, &memb_size);
+
+    size_t size_anc = 0;
+
+    if(!size || !memb || memb_size == 0)
+        return NULL;
+
+    anchor *anc = NULL;
+
+    if(memb_size > 1) {
+        size_t count = memb_size / 2;
+        anc = calloc(memb_size * memb_size / 2, sizeof(anchor));
+        for(size_t idx = 0, ent = 0; idx < memb_size; idx += 2, ent++) {
+            anc[ent].pos.x = memb[idx];
+            anc[ent].pos.y = memb[idx + 1];
+        }
+
+        *size = count;
+    } else {
+        *size = -1;
+        anc = (anchor*)(long)memb;
+    }
+
+    return anc;
+}
+
+static color *parsePallete(const char *fmt, long *size) {
+    size_t memb_size = 0;
+    long *memb = parseEntries(fmt, 3, &memb_size);
+
+    size_t size_anc = 0;
+
+    if(!size || !memb || memb_size == 0)
+        return NULL;
+
+    color *cols = NULL;
+
+    if(memb_size > 1) {
+        size_t count = memb_size / 3;
+        cols = calloc(memb_size * count, sizeof(color));
+        for(size_t idx = 0, ent = 0; idx < memb_size; idx += 3, ent++) {
+            cols[ent].red = memb[idx];
+            cols[ent].green = memb[idx + 1];
+            cols[ent].blue = memb[idx + 2];
+        }
+
+        *size = count;
+    } else {
+        *size = -1;
+        cols = (color*)(long)memb;
+    }
+
+    return cols;
+}
+
 Params parseArguments(int argc, char **argv) {
     opterr = 0;
     int opt;
+    size_t anchors_size = 0;
 
-    Params p;
+    Params params = NEW_PARAMS();
 
     while((opt = getopt_long(argc, argv, "o:s:a:A:p:P:f:kx:v::h", long_options, NULL)) != -1) {
         switch(opt) {
             case 'o': {
                 fprintf(stderr, "Got output_file option\n");
+                params.filename = optarg;
                 break;
             }
 
             case 's': {
                 fprintf(stderr, "Got size option\n");
-                size_t mem_written = 0;
-                long *mem = parseEntries(optarg, 2, &mem_written);
+                point p = parseSize(optarg);
 
-                if(mem == NULL || mem_written == 0) {
+                if(p.x == 0) {
                     fprintf(stderr, "Invalid size option %s\n", optarg);
-                    return p;
+                    exit(1);
                 }
 
-                fprintf(stderr, "Num written: %zu\n", mem_written);
-
-                /*if(mem_written == 1) {*/
-                    /*size.x = (long) mem;*/
-                    /*size.y = size.x;*/
-                /*} else {*/
-                    /*size.x = mem[0];*/
-                    /*size.y = mem[1];*/
-                    /*[>free(mem);<]*/
-                /*}*/
-
+                params.size = p;
                 break;
             }
 
             case 'a': {
                 fprintf(stderr, "Got anchors option\n");
+                anchor *a = NULL;
+                long a_size = 0;
+
+                a = parseAnchors(optarg, &a_size);
+
+                if(!a || (a_size == -1 && (long)a == 0)) {
+                    fprintf(stderr, "Invalid anchors option %s\n", optarg);
+                    exit(1);
+                }
+
+                if(a_size == -1) {
+                    params.anchors = NULL;
+                    params.anchors_size = (long) a;
+                    fprintf(stderr, "Got number %li\n", params.anchors_size);
+                }
+                else {
+                    params.anchors = a;
+                    params.anchors_size = a_size;
+                    for(size_t idx = 0; idx < a_size; idx++) {
+                        fprintf(stderr, "[%3zu]: (%4li, %4li)\n", idx, a[idx].pos.x, a[idx].pos.y);
+                    }
+                }
+
                 break;
             }
 
@@ -208,6 +305,29 @@ Params parseArguments(int argc, char **argv) {
 
             case 'p': {
                 fprintf(stderr, "Got pallete option\n");
+                color *p = NULL;
+                long p_size = 0;
+
+                p = parsePallete(optarg, &p_size);
+
+                if(!p || (p_size == -1 && (long)p == 0)) {
+                    fprintf(stderr, "Invalid pallete option %s\n", optarg);
+                    exit(1);
+                }
+
+                if(p_size == -1) {
+                    params.colors = NULL;
+                    params.colors_size = (long) p;
+                    fprintf(stderr, "Got number %li\n", params.colors_size);
+                }
+                else {
+                    params.colors = p;
+                    params.colors_size = p_size;
+                    for(size_t idx = 0; idx < p_size; idx++) {
+                        fprintf(stderr, "[%3zu]: (%3i, %3i, %3i)\n", idx, p[idx].red, p[idx].green, p[idx].blue);
+                    }
+                }
+
                 break;
             }
 
@@ -248,5 +368,34 @@ Params parseArguments(int argc, char **argv) {
         }
     }
 
-    return p;
+    if(!params.colors) {
+        params.colors = calloc(params.colors_size, sizeof(color));
+        if(!params.colors) {
+            fprintf(stderr, "Failed to allocate %zu bytes\n", params.colors_size * sizeof(color));
+            exit(1);
+        }
+
+        for(size_t idx = 0; idx < params.colors_size; idx++) {
+            params.colors[idx] = randomColor();
+        }
+    }
+
+    if(!params.anchors) {
+        params.anchors = calloc(params.anchors_size, sizeof(anchor));
+        if(!params.anchors) {
+            fprintf(stderr, "Failed to allocate %zu bytes\n", params.anchors_size * sizeof(color));
+            exit(1);
+        }
+
+        for(size_t idx = 0; idx < params.anchors_size; idx++) {
+            params.anchors[idx].pos = randomPoint(params.size);
+        }
+    }
+
+    for(size_t idx = 0; idx < params.anchors_size; idx++) {
+        size_t rand_idx = random() % params.colors_size;
+        params.anchors[idx].col = params.colors[rand_idx];
+    }
+
+    return params;
 }
