@@ -1,6 +1,7 @@
 #define _XOPEN_SOURCE 500
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <limits.h>
 #include <unistd.h>
 #include <stdbool.h>
@@ -11,7 +12,7 @@
 
 #include "./canvas.h"
 #include <png.h>
-/*#include <wand/MagickWand.h>*/
+#include <wand/MagickWand.h>
 
 point randomPoint(point range) {
     return (point){
@@ -195,51 +196,53 @@ int generatePNG(const char *filename, const color *color_map, point size) {
     return 1;
 }
 
-/*int generateGIF(const char *filename, anchor *anchors, size_t anchors_size, color *color_map, point size, size_t frames, int velocity) {*/
-    /*MagickWandGenesis();*/
-    /*MagickWand *wand = NewMagickWand();*/
-    /*MagickBooleanType status;*/
-    /*[>MagickSetCompression(wand, BZipCompression);<]*/
+int generateGIF(const char *filename, anchor *anchors, size_t anchors_size, color *color_map, point size, size_t frames, int velocity, bool keep) {
+    MagickWandGenesis();
+    MagickWand *wand = NewMagickWand();
+    MagickBooleanType status;
+    /*MagickSetCompression(wand, BZipCompression);*/
 
-    /*point direction[] = {*/
-        /*{-1, 0}, {-1, 1}, {0, 1}, {1, 1},*/
-        /*{1, 0}, {1, -1}, {0, -1}, {-1, -1}*/
-    /*};*/
+    point direction[] = {
+        {-1, 0}, {-1, 1}, {0, 1}, {1, 1},
+        {1, 0}, {1, -1}, {0, -1}, {-1, -1}
+    };
 
-    /*static const size_t direction_size = sizeof(direction) / sizeof(direction[0]);*/
+    static const size_t direction_size = sizeof(direction) / sizeof(direction[0]);
 
-    /*static char filepath[PATH_MAX];*/
-    /*for(size_t frame = 1; frame <= frames; frame++) {*/
-        /*sprintf(filepath, "frame_%zu.png", frame);*/
+    static char filepath[PATH_MAX];
+    for(size_t frame = 1; frame <= frames; frame++) {
+        sprintf(filepath, "frame_%zu.png", frame);
 
-        /*for(size_t idx = 0; idx < anchors_size; idx++) {*/
-            /*size_t dir = random() % direction_size;*/
-            /*point step = direction[dir];*/
-            /*anchors[idx].pos.x += step.x * velocity;*/
-            /*anchors[idx].pos.y += step.y * velocity;*/
-        /*}*/
+        for(size_t idx = 0; idx < anchors_size; idx++) {
+            size_t dir = random() % direction_size;
+            point step = direction[dir];
+            anchors[idx].pos.x += step.x * velocity;
+            anchors[idx].pos.y += step.y * velocity;
+        }
 
-        /*generateVoronoi(color_map, size, anchors, anchors_size);*/
-        /*generatePNG(filepath, color_map, size);*/
-        /*MagickReadImage(wand, filepath);*/
-    /*}*/
+        generateVoronoi(color_map, size, anchors, anchors_size);
+        generatePNG(filepath, color_map, size);
+        MagickReadImage(wand, filepath);
+    }
 
-    /*status = MagickWriteImages(wand, filename, MagickTrue);*/
+    status = MagickWriteImages(wand, filename, MagickTrue);
 
-    /*if(status == MagickFalse) {*/
-        /*ExceptionType severity;*/
-        /*char *description = MagickGetException(wand,&severity);*/
-        /*(void) fprintf(stderr,"%s %s %lu %s\n",GetMagickModule(),description);*/
-        /*description= (char *) MagickRelinquishMemory(description);*/
-        /*exit(-1);*/
-    /*}*/
+    if(status == MagickFalse) {
+        ExceptionType severity;
+        char *description = MagickGetException(wand,&severity);
+        (void) fprintf(stderr,"%s %s %lu %s\n",GetMagickModule(),description);
+        description= (char *) MagickRelinquishMemory(description);
+        exit(-1);
+    }
 
-    /*for(size_t frame = 1; frame <= frames; frame++) {*/
-        /*sprintf(filepath, "frame_%zu.png", frame);*/
-        /*remove(filepath);*/
-    /*}*/
+    if(!keep) {
+        for(size_t frame = 1; frame <= frames; frame++) {
+            sprintf(filepath, "frame_%zu.png", frame);
+            remove(filepath);
+        }
+    }
 
-    /*wand = DestroyMagickWand(wand);*/
-    /*MagickWandTerminus();*/
-    /*return 0;*/
-/*}*/
+    wand = DestroyMagickWand(wand);
+    MagickWandTerminus();
+    return 0;
+}

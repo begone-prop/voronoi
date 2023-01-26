@@ -36,6 +36,6 @@ color determinePixelColor(const anchor *, size_t, point);
 void *calculateChunk(void *);
 int generateVoronoi(color *, point, const anchor *, size_t);
 int generatePNG(const char *, const color *, point);
-int generateGIF(const char *, anchor *, size_t, color *, point, size_t, int);
+int generateGIF(const char *, anchor *, size_t, color *, point, size_t, int, bool);
 
 #endif

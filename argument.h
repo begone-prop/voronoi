@@ -26,7 +26,7 @@ typedef struct Params {
     .anchors_size = 5, \
     .colors = NULL, \
     .colors_size = 60, \
-    .frames = 0, \
+    .frames = 1, \
     .keep = false, \
     .seed = 0 \
 }

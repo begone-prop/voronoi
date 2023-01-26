@@ -16,15 +16,15 @@
 
 /*
     TODO:
-    + output file argument -o, --output, <PATH>
-    + image/gif size argument -s, --size, x | x,y
-    + anchors argument -a, --anchors c | x,y;x,y;...
-    + anchors file argument -A, --anchors_from <PATH>
-    + pallete argument -p, --pallete c | #rrggbb;#rrggbb;...
-    + pallete file argument -P, --pallete_from <PATH>
-    + frames argument -f, --frames c
-    + keep intermediate files argument  -k, --keep
-    + seed -x --seed c
+    + output file argument -o, --output, <PATH>    [X]
+    + image/gif size argument -s, --size, x | x,y  [X]
+    + anchors argument -a, --anchors c | x,y;x,y;...  [X]
+    + anchors file argument -A, --anchors_from <PATH>  [X]
+    + pallete argument -p, --pallete c | #rrggbb;#rrggbb;...  [X]
+    + pallete file argument -P, --pallete_from <PATH>  [X]
+    + frames argument -f, --frames c  [X]
+    + keep intermediate files argument  -k, --keep  [X]
+    + seed -x --seed c  [X]
     + verbose argument -v, --versbose
     + help message
     + better error messages
@@ -42,27 +42,8 @@ int main(int argc, char **argv) {
     /*anchor *anchors = NULL;*/
     /*size_t anchors_size = 0;*/
 
-    void* addr = malloc(0);
-    long seed = (long)*(long*)&addr;
-    free(addr);
-
-    srandom(seed);
-
     Params options = NEW_PARAMS();
     options = parseArguments(argc, argv);
-
-    /*long area = size.x * size.y;*/
-
-    /*const size_t anchors_size = 50;*/
-    /*[>const size_t frames = 60;<]*/
-    /*[>const int jitter = 5;<]*/
-
-    /*anchor anchors[anchors_size];*/
-
-    /*for(size_t idx = 0; idx < anchors_size; idx++) {*/
-        /*anchors[idx].pos = randomPoint(size);*/
-        /*anchors[idx].col = randomColor();*/
-    /*}*/
 
     long area = options.size.x * options.size.y;
 
@@ -73,11 +54,14 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    options.filename = "./voronoi.png";
-    generateVoronoi(color_map, options.size, options.anchors, options.anchors_size);
-    generatePNG(options.filename, color_map, options.size);
 
-    /*[>generateGIF(out_gif, anchors, anchors_size, color_map, size, frames, jitter);<]*/
+    if(options.frames == 1) {
+        generateVoronoi(color_map, options.size, options.anchors, options.anchors_size);
+        generatePNG(options.filename, color_map, options.size);
+    } else {
+        generateGIF(options.filename, options.anchors, options.anchors_size, color_map, options.size, options.frames, 3, options.keep);
+    }
+
     munmap(color_map, area);
     return 0;
 }

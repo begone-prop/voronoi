@@ -11,7 +11,7 @@ OBJ = argument.o canvas.o voronoi.o
 all: $(BIN)
 
 $(BIN): $(OBJ)
-	$(CC) $(CFLAGS) -o $@ $^ $(CLIBS)
+	$(CC) $(CFLAGS) -o $@ $^ $(CLIBS) $(IMFLAGS)
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c -o $@ $^ $(CLIBS) $(IMFLAGS)

@@ -264,6 +264,13 @@ static char *mmapFile(const char *filename, size_t *size) {
     return addr;
 }
 
+static long getNumber(const char *fmt) {
+    char *c;
+    long num = strtol(fmt, &c, 10);
+    if(*c != '\0') return -1;
+    return num;
+}
+
 Params parseArguments(int argc, char **argv) {
     opterr = 0;
     int opt;
@@ -379,6 +386,12 @@ Params parseArguments(int argc, char **argv) {
 
             case 'f': {
                 fprintf(stderr, "Got frames option\n");
+                long frames = getNumber(optarg);
+                if(frames == -1) {
+                    fprintf(stderr, "Invalid frames option: %s\n", optarg);
+                }
+
+                params.frames = frames;
                 break;
             }
 
@@ -390,6 +403,13 @@ Params parseArguments(int argc, char **argv) {
 
             case 'x': {
                 fprintf(stderr, "Got seed option\n");
+                long seed = getNumber(optarg);
+
+                if(seed == -1) {
+                    fprintf(stderr, "Invalid frames option: %s\n", optarg);
+                }
+
+                params.seed = seed;
                 break;
             }
 
@@ -408,6 +428,18 @@ Params parseArguments(int argc, char **argv) {
                 break;
             }
         }
+    }
+
+    if(params.seed == 0) {
+        void* addr = malloc(0);
+        params.seed = (long)*(long*)&addr;
+        free(addr);
+    }
+
+    srandom(params.seed);
+    if(!params.filename) {
+        fprintf(stderr, "No input file\n");
+        exit(1);
     }
 
     if(!params.colors) {
