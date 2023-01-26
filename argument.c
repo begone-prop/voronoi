@@ -12,6 +12,7 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <getopt.h>
+#include <err.h>
 
 typedef enum Token {
     BAD = 0,
@@ -153,7 +154,7 @@ long *parseEntries(const char *fmt, size_t members_count, size_t *written) {
 
     entries = calloc(num_entries * members_count, sizeof(long));
     if(!entries) {
-        fprintf(stderr, "Failed to allocate memory\n");
+        warn("Failed to allocate memory");
         return NULL;
     }
 
@@ -297,18 +298,15 @@ Params parseArguments(int argc, char **argv) {
     while((opt = getopt_long(argc, argv, "o:s:a:A:c:C:f:kx:v::h", long_options, NULL)) != -1) {
         switch(opt) {
             case 'o': {
-                fprintf(stderr, "Got output_file option\n");
                 params.filename = optarg;
                 break;
             }
 
             case 's': {
-                fprintf(stderr, "Got size option\n");
                 point p = parseSize(optarg);
 
                 if(p.x == 0) {
-                    fprintf(stderr, "Invalid size option %s\n", optarg);
-                    exit(1);
+                    errx(1, "Invalid size option %s", optarg);
                 }
 
                 params.size = p;
@@ -316,11 +314,8 @@ Params parseArguments(int argc, char **argv) {
             }
 
             case 'a': {
-                fprintf(stderr, "Got anchors option\n");
-
                 if(got_anchors) {
-                    fprintf(stderr, "Duplicate anchors options\n");
-                    exit(1);
+                    errx(1, "Duplicate anchors options");
                 }
 
                 got_anchors = true;
@@ -330,8 +325,7 @@ Params parseArguments(int argc, char **argv) {
                 a = parseAnchors(optarg, &a_size);
 
                 if(!a && a_size == 0) {
-                    fprintf(stderr, "Invalid anchors option %s\n", optarg);
-                    exit(1);
+                    errx(1, "Invalid anchors option %s", optarg);
                 }
 
                 params.anchors = a;
@@ -340,11 +334,8 @@ Params parseArguments(int argc, char **argv) {
             }
 
             case 'A': {
-                fprintf(stderr, "Got anchors_from option\n");
-
                 if(got_anchors) {
-                    fprintf(stderr, "Duplicate anchors options\n");
-                    exit(1);
+                    errx(1, "Duplicate anchors options");
                 }
 
                 got_anchors = true;
@@ -353,15 +344,13 @@ Params parseArguments(int argc, char **argv) {
                 char *contents = mmapFile(anchor_file, &cont_size);
 
                 if(!contents) {
-                    fprintf(stderr, "Failed call to mmap()\n");
-                    exit(1);
+                    err(1, "mmap()");
                 }
 
                 long af_size = 0;
                 anchor *af = parseAnchors(contents, &af_size);
                 if(!af && af_size == 0) {
-                    fprintf(stderr, "Invalid anchors option %s\n", optarg);
-                    exit(1);
+                    errx(1, "Invalid anchors option %s", optarg);
                 }
 
                 params.anchors = af;
@@ -371,11 +360,8 @@ Params parseArguments(int argc, char **argv) {
             }
 
             case 'c': {
-                fprintf(stderr, "Got colors option\n");
-
                 if(got_colors) {
-                    fprintf(stderr, "Duplicate colors options\n");
-                    exit(1);
+                    errx(1, "Duplicate colors options");
                 }
 
                 got_colors = true;
@@ -385,8 +371,7 @@ Params parseArguments(int argc, char **argv) {
                 p = parsePallete(optarg, &p_size);
 
                 if(!p && p_size == 0) {
-                    fprintf(stderr, "Invalid pallete option %s\n", optarg);
-                    exit(1);
+                    errx(1, "Invalid pallete option %s", optarg);
                 }
 
                 params.colors = p;
@@ -395,29 +380,23 @@ Params parseArguments(int argc, char **argv) {
             }
 
             case 'C': {
-                fprintf(stderr, "Got colors_from option\n");
-
                 if(got_colors) {
-                    fprintf(stderr, "Duplicate colors options\n");
-                    exit(1);
+                    errx(1, "Duplicate colors options");
                 }
 
                 got_colors = true;
-                fprintf(stderr, "Got anchors_from option\n");
                 char *colors_file = optarg;
                 size_t cont_size = 0;
                 char *contents = mmapFile(colors_file, &cont_size);
 
                 if(!contents) {
-                    fprintf(stderr, "Failed call to mmap()\n");
-                    exit(1);
+                    err(1, "Failed call to mmap()");
                 }
 
                 long cl_size = 0;
                 color *cl = parsePallete(contents, &cl_size);
                 if(!cl && cl_size == 0) {
-                    fprintf(stderr, "Invalid anchors option %s\n", optarg);
-                    exit(1);
+                    errx(1, "Invalid anchors option %s", optarg);
                 }
 
                 params.colors = cl;
@@ -427,10 +406,9 @@ Params parseArguments(int argc, char **argv) {
             }
 
             case 'f': {
-                fprintf(stderr, "Got frames option\n");
                 long frames = getNumber(optarg);
                 if(frames == -1) {
-                    fprintf(stderr, "Invalid frames option: %s\n", optarg);
+                    errx(1, "Invalid frames option: %s", optarg);
                 }
 
                 params.frames = frames;
@@ -438,17 +416,15 @@ Params parseArguments(int argc, char **argv) {
             }
 
             case 'k': {
-                fprintf(stderr, "Got keep option\n");
                 params.keep = true;
                 break;
             }
 
             case 'x': {
-                fprintf(stderr, "Got seed option\n");
                 long seed = getNumber(optarg);
 
                 if(seed == -1) {
-                    fprintf(stderr, "Invalid frames option: %s\n", optarg);
+                    errx(1, "Invalid frames option: %s", optarg);
                 }
 
                 params.seed = seed;
@@ -456,20 +432,15 @@ Params parseArguments(int argc, char **argv) {
             }
 
             case 'v': {
-                fprintf(stderr, "Got verbose option\n");
                 break;
             }
 
             case 'h': {
-                fprintf(stderr, "Got help option\n");
                 break;
             }
 
             default: {
-                fprintf(stderr, "Got %c\n", opt);
-                fprintf(stderr, "Got invaid argument: %c\n", opt);
-                exit(1);
-                break;
+                errx(1, "Got invaid argument: %c\n", opt);
             }
         }
     }
@@ -482,15 +453,13 @@ Params parseArguments(int argc, char **argv) {
 
     srandom(params.seed);
     if(!params.filename) {
-        fprintf(stderr, "No input file\n");
-        exit(1);
+        errx(1, "No input file");
     }
 
     if(!params.colors) {
         params.colors = calloc(params.colors_size, sizeof(color));
         if(!params.colors) {
-            fprintf(stderr, "Failed to allocate %zu bytes\n", params.colors_size * sizeof(color));
-            exit(1);
+            err(1, "Failed to allocate %zu bytes", params.colors_size * sizeof(color));
         }
 
         for(size_t idx = 0; idx < params.colors_size; idx++) {
@@ -501,8 +470,7 @@ Params parseArguments(int argc, char **argv) {
     if(!params.anchors) {
         params.anchors = calloc(params.anchors_size, sizeof(anchor));
         if(!params.anchors) {
-            fprintf(stderr, "Failed to allocate %zu bytes\n", params.anchors_size * sizeof(color));
-            exit(1);
+            err(1, "Failed to allocate %zu bytes", params.anchors_size * sizeof(color));
         }
 
         for(size_t idx = 0; idx < params.anchors_size; idx++) {

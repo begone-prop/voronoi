@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include <err.h>
 
 #include "./canvas.h"
 #include <png.h>
@@ -118,8 +119,8 @@ int generateVoronoi(color *buffer, point size, const anchor *anchors, size_t num
             args[thread_count]->map = buffer;
 
             if(pthread_create(&th[thread_count], NULL, calculateChunk, args[thread_count]) != 0) {
-                fprintf(stderr, "Failed to create thread\n");
-                return 1;
+                warn("Failed to create thread\n");
+                return 0;
             }
 
             total += run;
@@ -148,20 +149,20 @@ int generatePNG(const char *filename, const color *color_map, point size) {
 
     fp = fopen(filename, "wb+");
     if(!fp) {
-        fprintf(stderr, "Failed to open %s: %s\n", filename, strerror(errno));
+        warn("Failed to open %s", filename);
         return 0;
     }
 
     pngp = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
     if(pngp == NULL) {
-        fprintf(stderr, "Failed call to png_create_write_struct()\n");
+        warnx("png_create_write_struct()");
         return 0;
     }
 
     infop = png_create_info_struct(pngp);
 
     if(infop == NULL) {
-        fprintf(stderr, "Failed call to png_create_info_struct()\n");
+        warnx("Failed call to png_create_info_struct()");
         return 0;
     }
 
@@ -220,8 +221,16 @@ int generateGIF(const char *filename, anchor *anchors, size_t anchors_size, colo
             anchors[idx].pos.y += step.y * velocity;
         }
 
-        generateVoronoi(color_map, size, anchors, anchors_size);
-        generatePNG(filepath, color_map, size);
+        if(generateVoronoi(color_map, size, anchors, anchors_size) == 0) {
+            warnx("Failed to generate diagram");
+            return 0;
+        }
+
+        if(generatePNG(filepath, color_map, size) == 0) {
+            warnx("Failed to generate PNG image");
+            return 0;
+        }
+
         MagickReadImage(wand, filepath);
     }
 
@@ -230,9 +239,9 @@ int generateGIF(const char *filename, anchor *anchors, size_t anchors_size, colo
     if(status == MagickFalse) {
         ExceptionType severity;
         char *description = MagickGetException(wand,&severity);
-        (void) fprintf(stderr,"%s %s %lu %s\n",GetMagickModule(),description);
+        (void) warnx("%s %s %lu %s\n",GetMagickModule(),description);
         description= (char *) MagickRelinquishMemory(description);
-        exit(-1);
+        return 0;
     }
 
     if(!keep) {
@@ -244,5 +253,5 @@ int generateGIF(const char *filename, anchor *anchors, size_t anchors_size, colo
 
     wand = DestroyMagickWand(wand);
     MagickWandTerminus();
-    return 0;
+    return 1;
 }
