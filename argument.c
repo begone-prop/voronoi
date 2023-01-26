@@ -5,6 +5,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/mman.h>
 
 typedef enum Token {
     BAD = 0,
@@ -206,8 +210,8 @@ static anchor *parseAnchors(const char *fmt, long *size) {
 
         *size = count;
     } else {
-        *size = -1;
-        anc = (anchor*)(long)memb;
+        anc = NULL;
+        *size = (long)memb;
     }
 
     return anc;
@@ -235,11 +239,29 @@ static color *parsePallete(const char *fmt, long *size) {
 
         *size = count;
     } else {
-        *size = -1;
-        cols = (color*)(long)memb;
+        *size = (long)memb;
+        cols = NULL;
     }
 
     return cols;
+}
+
+static char *mmapFile(const char *filename, size_t *size) {
+    if(!size) return NULL;
+    int fd = open(filename, O_RDONLY);
+
+    struct stat sb;
+    if(fstat(fd, &sb) == -1) {
+        return NULL;
+    }
+
+    void *addr = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+
+    if(addr == MAP_FAILED) return NULL;
+    *size = sb.st_size;
+
+    close(fd);
+    return addr;
 }
 
 Params parseArguments(int argc, char **argv) {
@@ -248,6 +270,8 @@ Params parseArguments(int argc, char **argv) {
     size_t anchors_size = 0;
 
     Params params = NEW_PARAMS();
+    bool got_anchors = false;
+    bool got_colors = false;
 
     while((opt = getopt_long(argc, argv, "o:s:a:A:p:P:f:kx:v::h", long_options, NULL)) != -1) {
         switch(opt) {
@@ -277,29 +301,37 @@ Params parseArguments(int argc, char **argv) {
 
                 a = parseAnchors(optarg, &a_size);
 
-                if(!a || (a_size == -1 && (long)a == 0)) {
+                if(!a && a_size == 0) {
                     fprintf(stderr, "Invalid anchors option %s\n", optarg);
                     exit(1);
                 }
 
-                if(a_size == -1) {
-                    params.anchors = NULL;
-                    params.anchors_size = (long) a;
-                    fprintf(stderr, "Got number %li\n", params.anchors_size);
-                }
-                else {
-                    params.anchors = a;
-                    params.anchors_size = a_size;
-                    for(size_t idx = 0; idx < a_size; idx++) {
-                        fprintf(stderr, "[%3zu]: (%4li, %4li)\n", idx, a[idx].pos.x, a[idx].pos.y);
-                    }
-                }
-
+                params.anchors = a;
+                params.anchors_size = a_size;
                 break;
             }
 
             case 'A': {
                 fprintf(stderr, "Got anchors_from option\n");
+                char *anchor_file = optarg;
+                size_t cont_size = 0;
+                char *contents = mmapFile(anchor_file, &cont_size);
+
+                if(!contents) {
+                    fprintf(stderr, "Failed call to mmap()\n");
+                    exit(1);
+                }
+
+                long af_size = 0;
+                anchor *af = parseAnchors(contents, &af_size);
+                if(!af && af_size == 0) {
+                    fprintf(stderr, "Invalid anchors option %s\n", optarg);
+                    exit(1);
+                }
+
+                params.anchors = af;
+                params.anchors_size = af_size;
+                munmap(contents, cont_size);
                 break;
             }
 
@@ -310,29 +342,38 @@ Params parseArguments(int argc, char **argv) {
 
                 p = parsePallete(optarg, &p_size);
 
-                if(!p || (p_size == -1 && (long)p == 0)) {
+                if(!p && p_size == 0) {
                     fprintf(stderr, "Invalid pallete option %s\n", optarg);
                     exit(1);
                 }
 
-                if(p_size == -1) {
-                    params.colors = NULL;
-                    params.colors_size = (long) p;
-                    fprintf(stderr, "Got number %li\n", params.colors_size);
-                }
-                else {
-                    params.colors = p;
-                    params.colors_size = p_size;
-                    for(size_t idx = 0; idx < p_size; idx++) {
-                        fprintf(stderr, "[%3zu]: (%3i, %3i, %3i)\n", idx, p[idx].red, p[idx].green, p[idx].blue);
-                    }
-                }
-
+                params.colors = p;
+                params.colors_size = p_size;
                 break;
             }
 
             case 'P': {
                 fprintf(stderr, "Got pallete_from option\n");
+                fprintf(stderr, "Got anchors_from option\n");
+                char *colors_file = optarg;
+                size_t cont_size = 0;
+                char *contents = mmapFile(colors_file, &cont_size);
+
+                if(!contents) {
+                    fprintf(stderr, "Failed call to mmap()\n");
+                    exit(1);
+                }
+
+                long cl_size = 0;
+                color *cl = parsePallete(contents, &cl_size);
+                if(!cl && cl_size == 0) {
+                    fprintf(stderr, "Invalid anchors option %s\n", optarg);
+                    exit(1);
+                }
+
+                params.colors = cl;
+                params.colors_size = cl_size;
+                munmap(contents, cont_size);
                 break;
             }
 
@@ -343,6 +384,7 @@ Params parseArguments(int argc, char **argv) {
 
             case 'k': {
                 fprintf(stderr, "Got keep option\n");
+                params.keep = true;
                 break;
             }
 
