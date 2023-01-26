@@ -1,7 +1,7 @@
 BIN = voronoi
 CC = gcc
 
-CFLAGS = -Wall -Wextra -Wno-implicit-fallthrough -std=c99 -pedantic
+CFLAGS = -Wall -Wextra -Wno-implicit-fallthrough -Wno-unused-variable -std=c99 -pedantic
 CLIBS = -lpng
 IMFLAGS = $(shell pkg-config --cflags --libs MagickWand)
 

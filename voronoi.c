@@ -35,13 +35,6 @@
 
 int main(int argc, char **argv) {
 
-    char *output_file = NULL;
-    point size = {250, 250};
-
-    size_t def_anchors_size = 10;
-    /*anchor *anchors = NULL;*/
-    /*size_t anchors_size = 0;*/
-
     Params options = NEW_PARAMS();
     options = parseArguments(argc, argv);
 
@@ -53,7 +46,6 @@ int main(int argc, char **argv) {
         fprintf(stderr, "failed to allocate memory mmap(): %s\n", strerror(errno));
         return 1;
     }
-
 
     if(options.frames == 1) {
         generateVoronoi(color_map, options.size, options.anchors, options.anchors_size);

@@ -1,3 +1,4 @@
+#define _XOPEN_SOURCE 500
 
 #include "./argument.h"
 #include "canvas.h"
@@ -172,7 +173,7 @@ static point parseSize(const char *fmt) {
     point ret = {0, 0};
 
     size_t memb_size = 0;
-    long *memb = parseEntries(optarg, 2, &memb_size);
+    long *memb = parseEntries(fmt, 2, &memb_size);
 
     if(!memb || memb_size == 0)
         return ret;
@@ -192,8 +193,6 @@ static point parseSize(const char *fmt) {
 static anchor *parseAnchors(const char *fmt, long *size) {
     size_t memb_size = 0;
     long *memb = parseEntries(fmt, 2, &memb_size);
-
-    size_t size_anc = 0;
 
     if(!size || !memb || memb_size == 0)
         return NULL;
@@ -220,8 +219,6 @@ static anchor *parseAnchors(const char *fmt, long *size) {
 static color *parsePallete(const char *fmt, long *size) {
     size_t memb_size = 0;
     long *memb = parseEntries(fmt, 3, &memb_size);
-
-    size_t size_anc = 0;
 
     if(!size || !memb || memb_size == 0)
         return NULL;
@@ -274,7 +271,6 @@ static long getNumber(const char *fmt) {
 Params parseArguments(int argc, char **argv) {
     opterr = 0;
     int opt;
-    size_t anchors_size = 0;
 
     Params params = NEW_PARAMS();
     bool got_anchors = false;
