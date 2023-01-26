@@ -315,6 +315,13 @@ Params parseArguments(int argc, char **argv) {
 
             case 'a': {
                 fprintf(stderr, "Got anchors option\n");
+
+                if(got_anchors) {
+                    fprintf(stderr, "Duplicate anchors options\n");
+                    exit(1);
+                }
+
+                got_anchors = true;
                 anchor *a = NULL;
                 long a_size = 0;
 
@@ -332,6 +339,13 @@ Params parseArguments(int argc, char **argv) {
 
             case 'A': {
                 fprintf(stderr, "Got anchors_from option\n");
+
+                if(got_anchors) {
+                    fprintf(stderr, "Duplicate anchors options\n");
+                    exit(1);
+                }
+
+                got_anchors = true;
                 char *anchor_file = optarg;
                 size_t cont_size = 0;
                 char *contents = mmapFile(anchor_file, &cont_size);
@@ -355,7 +369,14 @@ Params parseArguments(int argc, char **argv) {
             }
 
             case 'c': {
-                fprintf(stderr, "Got pallete option\n");
+                fprintf(stderr, "Got colors option\n");
+
+                if(got_colors) {
+                    fprintf(stderr, "Duplicate colors options\n");
+                    exit(1);
+                }
+
+                got_colors = true;
                 color *p = NULL;
                 long p_size = 0;
 
@@ -372,7 +393,14 @@ Params parseArguments(int argc, char **argv) {
             }
 
             case 'C': {
-                fprintf(stderr, "Got pallete_from option\n");
+                fprintf(stderr, "Got colors_from option\n");
+
+                if(got_colors) {
+                    fprintf(stderr, "Duplicate colors options\n");
+                    exit(1);
+                }
+
+                got_colors = true;
                 fprintf(stderr, "Got anchors_from option\n");
                 char *colors_file = optarg;
                 size_t cont_size = 0;
