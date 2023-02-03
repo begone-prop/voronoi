@@ -27,10 +27,10 @@ static const char *token_name[] = { "BAD", "END", "ENTRY", "DELIM", "NUMBER" };
 static const struct option long_options[] = {
     {"output_file", required_argument, NULL, 'o'},
     {"size", required_argument, NULL, 's'},
+    {"anchors", required_argument, NULL, 'a'},
+    {"anchors_from", required_argument, NULL, 'A'},
     {"colors", required_argument, NULL, 'c'},
     {"colors_from", required_argument, NULL, 'C'},
-    {"pallete", required_argument, NULL, 'p'},
-    {"pallete_from", required_argument, NULL, 'P'},
     {"frames", required_argument, NULL, 'f'},
     {"keep", no_argument, NULL, 'k'},
     {"seed", required_argument, NULL, 'x'},
