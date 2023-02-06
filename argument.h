@@ -22,7 +22,7 @@ typedef struct Params {
     .filename = NULL, \
     .size = {250, 250}, \
     .anchors = NULL, \
-    .anchors_size = 5, \
+    .anchors_size = 10, \
     .colors = NULL, \
     .colors_size = 60, \
     .frames = 1, \
