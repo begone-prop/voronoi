@@ -1,5 +1,11 @@
 # A multithreaded Voronoi diagram generator
 
+A still:
+![showcase](./media/shocase.png)
+
+An animation with 30 frames:
+![showcase](./media/showcase.gif)
+
 ## Description
 
 The following program generates an image or GIF file of a [Voronoi diagram](https://en.wikipedia.org/wiki/Voronoi_diagram)
