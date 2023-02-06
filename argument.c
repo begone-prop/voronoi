@@ -36,7 +36,10 @@ static const struct option long_options[] = {
     {"seed", required_argument, NULL, 'x'},
     {"verbose", optional_argument, NULL, 'v'},
     {"help", optional_argument, NULL, 'h'},
+    {0, 0, 0, 0},
 };
+
+static const size_t long_options_size = sizeof(long_options) / sizeof(long_options[0]);
 
 static Token parseToken(const char *, const char **, long *);
 static long *parseEntries(const char *, size_t, size_t *);
@@ -295,7 +298,10 @@ Params parseArguments(int argc, char **argv) {
     bool got_anchors = false;
     bool got_colors = false;
 
-    while((opt = getopt_long(argc, argv, "o:s:a:A:c:C:f:kx:v::h", long_options, NULL)) != -1) {
+    int opt_idx = -1;
+
+
+    while((opt = getopt_long(argc, argv, "o:s:a:A:c:C:f:kx:v::h", long_options, &opt_idx)) != -1) {
         switch(opt) {
             case 'o': {
                 params.filename = optarg;
@@ -439,8 +445,9 @@ Params parseArguments(int argc, char **argv) {
                 break;
             }
 
-            default: {
-                errx(1, "Got invaid argument: %c\n", opt);
+            case 0:
+            case '?': {
+                errx(1, "Got invaid argument: %s", argv[optind - 1]);
             }
         }
     }
