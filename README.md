@@ -1,7 +1,7 @@
 # A multithreaded Voronoi diagram generator
 
 A still:
-![showcase](./media/shocase.png)
+![showcase](./media/showcase.png)
 
 An animation with 30 frames:
 ![showcase](./media/showcase.gif)
